@@ -3,7 +3,7 @@
 kstring::kstring(const wchar_t* str, POOL_TYPE pool, ULONG tag) : kstring(str, 0, pool, tag) {
 }
 
-kstring::kstring(const wchar_t * str, ULONG count, POOL_TYPE pool, ULONG tag) : m_Pool(pool), m_Tag(tag) {
+kstring::kstring(const wchar_t* str, ULONG count, POOL_TYPE pool, ULONG tag) : m_Pool(pool), m_Tag(tag) {
 	if (str) {
 		m_Len = count == 0 ? static_cast<ULONG>(wcslen(str)) : count;
 		m_Capacity = m_Len + 1;
@@ -22,8 +22,10 @@ kstring::~kstring() {
 }
 
 void kstring::Release() {
-	if (m_str)
+	if (m_str) {
 		ExFreePoolWithTag(m_str, m_Tag);
+		m_str = nullptr;
+	}
 }
 
 kstring::kstring(kstring&& other) {
@@ -78,11 +80,6 @@ kstring::kstring(PCUNICODE_STRING str, POOL_TYPE pool, ULONG tag) : m_Pool(pool)
 	m_str = Allocate(m_Len, str->Buffer);
 }
 
-kstring::kstring(PUNICODE_STRING str, POOL_TYPE pool, ULONG tag) : m_Pool(pool), m_Tag(tag) {
-	m_Len = str->Length / sizeof(WCHAR);
-	m_str = Allocate(m_Len, str->Buffer);
-}
-
 kstring::kstring(const kstring& other) : m_Len(other.m_Len) {
 	m_Pool = other.m_Pool;
 	m_Tag = other.m_Tag;
@@ -127,9 +124,13 @@ wchar_t* kstring::Allocate(size_t chars, const wchar_t* src) {
 
 kstring kstring::ToLower() const {
 	kstring temp(m_str);
-	for (size_t i = 0; i < temp.Length(); ++i)
-		temp[i] = ::towlower(temp[i]);
+	::_wcslwr(temp.m_str);
 	return temp;
+}
+
+kstring& kstring::ToLower() {
+	::_wcslwr(m_str);
+	return *this;
 }
 
 kstring& kstring::Truncate(ULONG count) {
@@ -153,7 +154,7 @@ kstring & kstring::Append(PCWSTR str, ULONG len) {
 		newBuffer = Allocate(m_Capacity = m_Len + 8, m_str);
 		newAlloc = true;
 	}
-	::wcsncat(newBuffer, str, len);
+	::wcsncat_s(newBuffer, m_Capacity, str, len);
 	if (newAlloc) {
 		Release();
 		m_str = newBuffer;
